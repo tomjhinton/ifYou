@@ -140,10 +140,9 @@ class Main extends React.Component{
     //DISPLAY  STATS
     const scoreDisplay = document.getElementById('score')
     const livesDisplay = document.getElementById('lives')
-    const ballsIn = document.getElementById('ballsIn')
     const reset = document.getElementById('reset')
     let score = 0
-    let lives = 31
+    let lives = 6
 
 
     //KeyBoard Controls
@@ -152,24 +151,38 @@ class Main extends React.Component{
       e.preventDefault()
       if(e.keyCode===38){
 
-        if(player.width === 20 && !player.grounded){
-          player.width = 50
-          player.height = 20
-
-        } else if(player.width === 50 && !player.grounded){
-          player.width = 20
-          player.height = 50
-
-
-        }
       }
       if(e.keyCode===82){
+        playerScreenBody.position =  startPos
+        playerScreenBody.quaternion = startQuart
+        playerScreenBody.position.set(0,0,0)
+        playerScreenBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
+        playerScreenBody.angularVelocity.x = 0
+        playerScreenBody.angularVelocity.y = 0
+        playerScreenBody.angularVelocity.z = 0
+        playerScreenBody.velocity.x = 0
+        playerScreenBody.velocity.y = 0
+        playerScreenBody.velocity.z = 0
+        console.log(playerScreenBody)
         score = 0
-        lives = 31
+        lives = 6
         setup()
         reset.innerHTML = ''
         canvas.classList.remove('over')
         reset.classList.add('hide')
+        balls.map(x=>{
+
+          world.remove(x)
+
+        } )
+        ballMeshes.map(x=>{
+          x.geometry.dispose()
+          x.material.dispose()
+          scene.remove( x )
+        } )
+        playing = true
+
+
 
       }
 
@@ -283,7 +296,14 @@ class Main extends React.Component{
 
 
     //UPDATE LOOP
+    const wall ={
+      posX: canvas.width-10,
+      posY: 410,
+      height: 80,
+      width: 40
 
+
+    }
     function gameLoop() {
 
       if(lives <= 0){
@@ -291,6 +311,7 @@ class Main extends React.Component{
         reset.classList.remove('hide')
         lives = 0
         livesDisplay.innerHTML = lives
+        playing = false
       }
       if(lives>0){
         scoreDisplay.innerHTML = score
@@ -310,13 +331,13 @@ class Main extends React.Component{
         }if (keys[39]) {
         // right arrow
           if (player.velX < player.speed) {
-            player.velX++
+            // player.velX++
 
           }
         }
         if (keys[37]) {         // left arrow
           if (player.velX > -player.speed) {
-            player.velX--
+            // player.velX--
 
           }
         }
@@ -372,8 +393,19 @@ class Main extends React.Component{
         }
 
 
+        let impactCheck = collisionDetection(player, wall)
+        if (impactCheck === 'l' || impactCheck === 'r') {
+          lives--
+            wall.posX = canvas.width
+        } else if (impactCheck === 'b') {
 
+          lives--
+            wall.posX = canvas.width
+        } else if (impactCheck === 't') {
+          lives--
+            wall.posX = canvas.width
 
+        }
 
 
         player.posX += player.velX
@@ -396,7 +428,12 @@ class Main extends React.Component{
 
         ctx.globalAlpha = 1
         ctx.fillStyle = 'rgba(255,255,255,0.8 )'
-
+        ctx.fillStyle = 'blue'
+        ctx.fillRect(wall.posX, wall.posY, 30, wall.height)
+        wall.posX-=2
+        if(wall.posX < -10){
+          wall.posX = canvas.width
+        }
 
 
       }
@@ -443,9 +480,6 @@ class Main extends React.Component{
 
       camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 0.5, 10000 )
 
-      camera.position.x=0
-      camera.position.y=-2
-      camera.position.z=15
 
 
       scene.add( camera )
@@ -472,18 +506,9 @@ class Main extends React.Component{
       scene.background = new THREE.Color( 0x000000 )
 
 
-
-
-
-
-
-
-
       renderer = new THREE.WebGLRenderer( {alpha: false } ) ;              renderer.setSize( window.innerWidth, window.innerHeight )
 
       container.appendChild( renderer.domElement )
-
-
 
       window.addEventListener( 'resize', onWindowResize, false )
 
@@ -502,7 +527,7 @@ class Main extends React.Component{
 
     }
 
-    var controls = new OrbitControls( camera, renderer.domElement )
+    // var controls = new OrbitControls( camera, renderer.domElement )
 
     const  texture = new THREE.CanvasTexture(canvas)
     console.log(texture)
@@ -516,6 +541,11 @@ class Main extends React.Component{
     playerScreen.elementsNeedUpdate = true
     playerScreen.verticesNeedUpdate = true
     scene.add( playerScreen )
+
+    camera.position.x=0
+    camera.position.y=4
+    camera.position.z=25
+    camera.lookAt( playerScreen.position );
 
     const playerMaterial = new CANNON.Material('playerMaterial')
 
@@ -534,8 +564,7 @@ class Main extends React.Component{
     // playerScreenBody.fixedRotation = true
     playerScreenBody.linearDamping = 0.1
     world.addBody(playerScreenBody)
-    console.log(playerScreen)
-    console.log(playerScreenBody)
+
   //   playerScreenBody.addEventListener('collide',function(e){
   //     playerScreenBody.velocity.y+=1
   //
@@ -550,18 +579,16 @@ class Main extends React.Component{
     groundBody.position.y = -3
 
     world.addBody(groundBody)
-    console.log(groundBody)
     var groundPlayerContactMaterial = new CANNON.ContactMaterial(groundMaterial, playerMaterial, { friction: 0.0, restitution: 0.0 })
     world.addContactMaterial(groundPlayerContactMaterial)
     world.solver.iterations = 10
 
     world.defaultContactMaterial.contactEquationStiffness = 1e7
     world.defaultContactMaterial.contactEquationRelaxation = 4
-    console.log(world)
-    console.log(groundPlayerContactMaterial)
     const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
     let balls = []
     let ballMeshes = []
+    console.log(playerScreenBody)
     function ballCreate(x,y){
       const materialBall = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 1,
         transparent: true } )
@@ -585,22 +612,27 @@ class Main extends React.Component{
       ballBody.velocity.z = -10
       ballBody.addEventListener('collide',function(e){
 
-        console.log(e)
-        if(playing){
+        console.log(e.contact.bj.material.name)
+        if(e.contact.bj.material.name === 'playerMaterial'){
 
-          // playing = false
+          lives--
 
 
         }
       })
     }
+    let startPos =  playerScreenBody.position
+    let startQuart = playerScreenBody.quaternion
+    console.log(startPos)
+    console.log(startQuart)
 
 
     ballCreate(0, Math.floor(Math.random()*25))
     setInterval(function () {
       console.log('hiya')
       if(playing){
-        ballCreate(0, Math.floor(Math.random()*25))
+        ballCreate(-2+Math.floor(Math.random()*4), Math.floor(Math.random()*25))
+        score+=1
       }
     }, 5000)
 
@@ -662,7 +694,7 @@ class Main extends React.Component{
         <div className="info">
      Score  :<span id="score" className="banner"></span>
      Lives  :<span id="lives" className="banner"></span>
-     Balls In Play  :<span id="ballsIn" className="banner"></span>
+        <div>Clap and Space Bar To Jump</div>
         </div>
         <div id="reset" className="hide"></div>
         <canvas id='canvas' width="1200" height="600"> </canvas>
