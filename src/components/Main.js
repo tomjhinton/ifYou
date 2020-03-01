@@ -4,19 +4,9 @@ const CANNON = require('cannon')
 const THREE = require('three')
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import Typed from 'typed.js'
+import '../debug.js'
 
 
-var options = {
-  strings: ['', 'aleatoricBounce'],
-  typeSpeed: 100,
-  loop: true,
-  loopCount: 2,
-  backDelay: 2000,
-  backSpeed: 100,
-  showCursor: false
-
-}
-// const typed = new Typed('#title', options)
 
 
 var resetT = {
@@ -51,72 +41,76 @@ class Main extends React.Component{
 
     //mic STUFF
     var Recording = function(cb){
-      var recorder = null;
-      var recording = true;
-      var audioInput = null;
-      var volume = null;
-      var audioContext = null;
-      var callback = cb;
+      var recorder = null
+      var recording = true
+      var audioInput = null
+      var volume = null
+      var audioContext = null
+      var callback = cb
 
       navigator.getUserMedia = navigator.getUserMedia    || navigator.webkitGetUserMedia ||
-                               navigator.mozGetUserMedia || navigator.msGetUserMedia;
+                               navigator.mozGetUserMedia || navigator.msGetUserMedia
 
       if(navigator.getUserMedia){
-        navigator.getUserMedia({audio:true},
+        navigator.getUserMedia({audio: true},
           function(e){ //success
-            var AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioContext = new AudioContext();
-            volume = audioContext.createGain(); // creates a gain node
-            audioInput = audioContext.createMediaStreamSource(e); // creates an audio node from the mic stream
-            audioInput.connect(volume);// connect the stream to the gain node
-            recorder = audioContext.createScriptProcessor(2048, 1, 1);
+            var AudioContext = window.AudioContext || window.webkitAudioContext
+            audioContext = new AudioContext()
+            volume = audioContext.createGain() // creates a gain node
+            audioInput = audioContext.createMediaStreamSource(e) // creates an audio node from the mic stream
+            audioInput.connect(volume)// connect the stream to the gain node
+            recorder = audioContext.createScriptProcessor(2048, 1, 1)
 
             recorder.onaudioprocess = function(e){
-                if(!recording) return;
-                var left = e.inputBuffer.getChannelData(0);
-                //var right = e.inputBuffer.getChannelData(1);
-                callback(new Float32Array(left));
-            };
-            volume.connect(recorder);// connect the recorder
-            recorder.connect(audioContext.destination);
+              if(!recording) return
+              var left = e.inputBuffer.getChannelData(0)
+              //var right = e.inputBuffer.getChannelData(1);
+              callback(new Float32Array(left))
+            }
+            volume.connect(recorder)// connect the recorder
+            recorder.connect(audioContext.destination)
           },
-          function(e){ //failure
-            alert('Error capturing audio.');
+          function(){ //failure
+            alert('Error capturing audio.')
           }
-        );
+        )
       } else {
-        alert('getUserMedia not supported in this browser.');
+        alert('getUserMedia not supported in this browser.')
       }
-    };
+    }
 
-    var lastClap = (new Date()).getTime();
+    var lastClap = (new Date()).getTime()
 
     function detectClap(data){
-      var t = (new Date()).getTime();
-      if(t - lastClap < 200) return false; // TWEAK HERE
-      var zeroCrossings = 0, highAmp = 0;
+      var t = (new Date()).getTime()
+      if(t - lastClap < 200) return false // TWEAK HERE
+      var zeroCrossings = 0, highAmp = 0
       for(var i = 1; i < data.length; i++){
-        if(Math.abs(data[i]) > 0.25) highAmp++; // TWEAK HERE
-        if(data[i] > 0 && data[i-1] < 0 || data[i] < 0 && data[i-1] > 0) zeroCrossings++;
+        if(Math.abs(data[i]) > 0.25) highAmp++ // TWEAK HERE
+        if(data[i] > 0 && data[i-1] < 0 || data[i] < 0 && data[i-1] > 0) zeroCrossings++
       }
       if(highAmp > 20 && zeroCrossings > 30){ // TWEAK HERE
         //console.log(highAmp+' / '+zeroCrossings);
-        lastClap = t;
-        return true;
+        lastClap = t
+        return true
       }
-      return false;
+      return false
     }
 
     var rec = new Recording(function(data){
       if(detectClap(data)){
-        console.log('clap!');
+        console.log('clap!')
         if (!player.jumping && player.grounded) {
           player.jumping = true
           player.grounded = false
           player.velY = -player.speed * 4
 
         }
-        document.bgColor = 'rgb('+Math.random()*255+','+Math.random()*255+','+Math.random()*255+')';
+        if(groundBody.position.y<1){
+
+        //groundBody.velocity.y+=0.1
+      }
+        document.bgColor = 'rgb('+Math.random()*255+','+Math.random()*255+','+Math.random()*255+')'
       }
     })
 
@@ -139,437 +133,451 @@ class Main extends React.Component{
     var grd2 = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
 
 
-//sound STUFF
-
-
-
-//DISPLAY  STATS
-const scoreDisplay = document.getElementById('score')
-const livesDisplay = document.getElementById('lives')
-const ballsIn = document.getElementById('ballsIn')
-const reset = document.getElementById('reset')
-let score = 0
-let lives = 31
-
-
-//KeyBoard Controls
-let keys =[]
-document.body.addEventListener('keydown', function (e) {
-  e.preventDefault();
-  if(e.keyCode===38){
-
-    if(player.width === 20 && !player.grounded){
-      player.width = 50
-      player.height = 20
-    } else if(player.width === 50 && !player.grounded){
-      player.width = 20
-      player.height = 50
-
-
-    }
-  }
-  if(e.keyCode===82){
-    score = 0
-    lives = 31
-    setup()
-    reset.innerHTML = ''
-    canvas.classList.remove('over')
-    reset.classList.add('hide')
-
-  }
-
-  keys[e.keyCode] = true
-})
-
-document.body.addEventListener('keyup', function (e) {
-  keys[e.keyCode] = false
-})
-
-
-
-//Element Setup
-const player = {
-  height: 50,
-  width: 20,
-  posX: 0,
-  posY: 0,
-  velX: 0,
-  velY: 0,
-  speed: 3,
-  jumping: false,
-  grounded: false
-
-}
-
-
-
-const worldG = {
-  gravity: 0.2,
-  friction: 0.9
-}
 
 
 
 
-var boxes = []
-let check
-
-function Box(posX, posY, width){
-  this.posX = posX,
-  this.posY = posY,
-  this.width = width,
-  this.height= 10
-  check = boxes.filter(x => x.posY !== this.posY && this.posY > (x.posY-10) && this.posY < (x.posY+10) )
-  if(check.length === 0){
-    boxes.push(this)
-  }
-}
+    //DISPLAY  STATS
+    const scoreDisplay = document.getElementById('score')
+    const livesDisplay = document.getElementById('lives')
+    const ballsIn = document.getElementById('ballsIn')
+    const reset = document.getElementById('reset')
+    let score = 0
+    let lives = 31
 
 
-//Start / Reset
-function setup(){
-  lives--
+    //KeyBoard Controls
+    const keys =[]
+    document.body.addEventListener('keydown', function (e) {
+      e.preventDefault()
+      if(e.keyCode===38){
+
+        if(player.width === 20 && !player.grounded){
+          player.width = 50
+          player.height = 20
+        } else if(player.width === 50 && !player.grounded){
+          player.width = 20
+          player.height = 50
 
 
-  boxes = []
-
-
-  // border walls
-  boxes.push({
-    posX: 0,
-    posY: 590,
-    width: 1200,
-    height: 10
-  })
-
-  boxes.push({
-    posX: 0,
-    posY: 0,
-    width: 1200,
-    height: 10
-  })
-
-  boxes.push({
-    posX: 0,
-    posY: 0,
-    width: 10,
-    height: 600
-  })
-
-  boxes.push({
-    posX: 1190,
-    posY: 0,
-    width: 10,
-    height: 600
-  })
-
-
-}
-setup()
-
-
-//Collision Detection
-function collisionDetection(shapeA, shapeB){
-  var vX = (shapeA.posX + (shapeA.width / 2)) - (shapeB.posX + (shapeB.width / 2)),
-    vY = (shapeA.posY + (shapeA.height / 2)) - (shapeB.posY + (shapeB.height / 2)),
-    // add the half widths and half heights of the objects
-    hWidths = (shapeA.width / 2) + (shapeB.width / 2),
-    hHeights = (shapeA.height / 2) + (shapeB.height / 2),
-    colDir = null
-
-  // if the x and y vector are less than the half width or half height, they we must be inside the object, causing a collision
-  if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
-    //  figures out on which side we are colliding (top, bottom, left, or right)
-    var oX = hWidths - Math.abs(vX),
-      oY = hHeights - Math.abs(vY)
-    if (oX >= oY) {
-      if (vY > 0) {
-        colDir = 't'
-        shapeA.posY += oY
-      } else {
-        colDir = 'b'
-        shapeA.posY -= oY
-
+        }
       }
-    } else {
-      if (vX > 0) {
-        colDir = 'l'
-        shapeA.posX += oX
-      } else {
-        colDir = 'r'
-        shapeA.posX -= oX
-      }
-    }
-  }
-  return colDir
-}
-
-
-
-//UPDATE LOOP
-
-function gameLoop() {
-
-  if(lives <= 0){
-    canvas.classList.add('over')
-    reset.classList.remove('hide')
-    lives = 0
-    livesDisplay.innerHTML = lives
-  }
-  if(lives>0){
-    scoreDisplay.innerHTML = score
-    livesDisplay.innerHTML = lives
-
-
-
-    if (keys[32] ) {
-
-      // up arrow or space
-      if (!player.jumping && player.grounded) {
-        player.jumping = true
-        player.grounded = false
-        player.velY = -player.speed * 4
-
-      }
-    }if (keys[39]) {
-    // right arrow
-      if (player.velX < player.speed) {
-        player.velX++
-
-      }
-    }
-    if (keys[37]) {         // left arrow
-      if (player.velX > -player.speed) {
-        player.velX--
-
-      }
-    }
-
-
-
-
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.globalAlpha = 0.3
-    grd.addColorStop(0, '#8ED6FF')
-    grd.addColorStop(0.2, '#004CB3')
-    grd.addColorStop(0.8, '#EE4CB3')
-    //grd.addColorStop(0.6, '#E000EE')
-    ctx.fillStyle = grd
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-
-    player.velX *= worldG.friction
-    player.velY += worldG.gravity
-
-
-
-
-
-
-    player.grounded = false
-    boxes.map(x => {
-      ctx.fillRect(x.posX, x.posY, x.width, x.height)
-      var dir  = collisionDetection(player, x)
-
-      if (dir === 'l' || dir === 'r') {
-        player.velX = 0
-        player.jumping = false
-      } else if (dir === 'b') {
-
-        player.grounded = true
-        player.jumping = false
-      } else if (dir === 't') {
-        player.velY = 0
+      if(e.keyCode===82){
+        score = 0
+        lives = 31
+        setup()
+        reset.innerHTML = ''
+        canvas.classList.remove('over')
+        reset.classList.add('hide')
 
       }
 
+      keys[e.keyCode] = true
+    })
 
-
+    document.body.addEventListener('keyup', function (e) {
+      keys[e.keyCode] = false
     })
 
 
 
-    if(player.grounded){
-      player.velY = 0
+    //Element Setup
+    const player = {
+      height: 50,
+      width: 20,
+      posX: 400,
+      posY: 400,
+      velX: 0,
+      velY: 0,
+      speed: 3,
+      jumping: false,
+      grounded: false
+
+    }
+
+
+
+    const worldG = {
+      gravity: 0.2,
+      friction: 0.9
     }
 
 
 
 
+    var boxes = []
+    let check
+
+    function Box(posX, posY, width){
+      this.posX = posX,
+      this.posY = posY,
+      this.width = width,
+      this.height= 10
+      check = boxes.filter(x => x.posY !== this.posY && this.posY > (x.posY-10) && this.posY < (x.posY+10) )
+      if(check.length === 0){
+        boxes.push(this)
+      }
+    }
+
+
+    //Start / Reset
+    function setup(){
+      lives--
 
 
-    player.posX += player.velX
-    player.posY += player.velY
+      boxes = []
 
 
+      // border walls
+      boxes.push({
+        posX: 0,
+        posY: 490,
+        width: 1200,
+        height: 110
+      })
 
 
 
 
-    grd2.addColorStop(0.8, '#8ED6FF')
+    }
+    setup()
 
-    grd2.addColorStop(0.2, '#EE4CB3')
 
+    //Collision Detection
+    function collisionDetection(shapeA, shapeB){
+      var vX = (shapeA.posX + (shapeA.width / 2)) - (shapeB.posX + (shapeB.width / 2)),
+        vY = (shapeA.posY + (shapeA.height / 2)) - (shapeB.posY + (shapeB.height / 2)),
+        // add the half widths and half heights of the objects
+        hWidths = (shapeA.width / 2) + (shapeB.width / 2),
+        hHeights = (shapeA.height / 2) + (shapeB.height / 2),
+        colDir = null
 
+      // if the x and y vector are less than the half width or half height, they we must be inside the object, causing a collision
+      if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
+        //  figures out on which side we are colliding (top, bottom, left, or right)
+        var oX = hWidths - Math.abs(vX),
+          oY = hHeights - Math.abs(vY)
+        if (oX >= oY) {
+          if (vY > 0) {
+            colDir = 't'
+            shapeA.posY += oY
+          } else {
+            colDir = 'b'
+            shapeA.posY -= oY
 
-    ctx.fillStyle = grd2
+          }
+        } else {
+          if (vX > 0) {
+            colDir = 'l'
+            shapeA.posX += oX
+          } else {
+            colDir = 'r'
+            shapeA.posX -= oX
+          }
+        }
+      }
+      return colDir
+    }
 
-    ctx.fillRect(player.posX, player.posY, player.width, player.height)
 
-    ctx.globalAlpha = 1
-    ctx.fillStyle = 'rgba(255,255,255,0.8 )'
 
+    //UPDATE LOOP
 
+    function gameLoop() {
 
-  }
-  requestAnimationFrame(gameLoop)
+      if(lives <= 0){
+        canvas.classList.add('over')
+        reset.classList.remove('hide')
+        lives = 0
+        livesDisplay.innerHTML = lives
+      }
+      if(lives>0){
+        scoreDisplay.innerHTML = score
+        livesDisplay.innerHTML = lives
 
-}
 
 
+        if (keys[32] ) {
+          groundBody.velocity.y+=1
+          // up arrow or space
+          if (!player.jumping && player.grounded) {
+            player.jumping = true
+            player.grounded = false
+            player.velY = -player.speed * 4
 
+          }
+        }if (keys[39]) {
+        // right arrow
+          if (player.velX < player.speed) {
+            player.velX++
 
-gameLoop()
+          }
+        }
+        if (keys[37]) {         // left arrow
+          if (player.velX > -player.speed) {
+            player.velX--
 
+          }
+        }
 
 
 
-            let container
-            let camera, scene, renderer;
 
-            let sphereMesh, sphereBody;
-            const particles = [];
-            let world  = new CANNON.World();
 
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.globalAlpha = 0.3
+        grd.addColorStop(0, '#8ED6FF')
+        grd.addColorStop(0.2, '#004CB3')
+        grd.addColorStop(0.8, '#EE4CB3')
+        //grd.addColorStop(0.6, '#E000EE')
+        ctx.fillStyle = grd
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-            init();
-            animate();
 
+        player.velX *= worldG.friction
+        player.velY += worldG.gravity
 
-  var dt = 1/60, R = 0.2;
 
-            function init() {
 
-                container = document.createElement( 'div' )
-                document.body.appendChild( container )
 
-                // scene
 
-                scene = new THREE.Scene()
 
-                scene.fog = new THREE.Fog( 0x000000, 500, 10000 )
+        player.grounded = false
+        boxes.map(x => {
+          ctx.fillStyle = 'rgb(74,246,38)'
+          ctx.fillRect(x.posX, x.posY, x.width, x.height)
+          var dir  = collisionDetection(player, x)
 
-                // camera
+          if (dir === 'l' || dir === 'r') {
+            player.velX = 0
+            player.jumping = false
+          } else if (dir === 'b') {
 
-                camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 0.5, 10000 )
+            player.grounded = true
+            player.jumping = false
+          } else if (dir === 't') {
+            player.velY = 0
 
-                camera.position.x=0
-                camera.position.y=-2
-                camera.position.z=15
+          }
 
 
-                scene.add( camera )
 
+        })
 
 
 
-                // lights
-                var light, materials;
-                scene.add( new THREE.AmbientLight( 0x666666 ) );
+        if(player.grounded){
+          player.velY = 0
+        }
 
-                light = new THREE.DirectionalLight( 0xffffff, 1.75 );
-                var d = 5;
 
-                light.position.set( d, d, d );
 
-                light.castShadow = true;
-                //light.shadowCameraVisible = true;
 
 
 
-                scene.add( light );
+        player.posX += player.velX
+        player.posY += player.velY
 
-                scene.background = new THREE.Color( 0x000000 );
 
 
 
 
 
-                // sphere
-                var ballGeo = new THREE.SphereGeometry( 1, 20, 20 );
-                var ballMaterial = new THREE.MeshPhongMaterial( { color: 0x888888 } )
+        grd2.addColorStop(0.8, '#8ED6FF')
 
-                sphereMesh = new THREE.Mesh( ballGeo, ballMaterial );
-                sphereMesh.castShadow = true;
-                //sphereMesh.receiveShadow = true;
-                // scene.add( sphereMesh );
+        grd2.addColorStop(0.2, '#EE4CB3')
 
 
- renderer = new THREE.WebGLRenderer( {alpha: true } );                renderer.setSize( window.innerWidth, window.innerHeight );
 
-                container.appendChild( renderer.domElement );
+        ctx.fillStyle = grd2
 
+        ctx.fillRect(player.posX, player.posY, player.width, player.height)
 
+        ctx.globalAlpha = 1
+        ctx.fillStyle = 'rgba(255,255,255,0.8 )'
 
-                window.addEventListener( 'resize', onWindowResize, false );
 
-                // camera.lookAt( sphereMesh.position );
-            }
 
-            //
+      }
+      requestAnimationFrame(gameLoop)
 
-            function onWindowResize() {
+    }
 
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                // controls.handleResize();
 
-                renderer.setSize( window.innerWidth, window.innerHeight );
 
-            }
-          //  const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
-            // var controls = new OrbitControls( camera, renderer.domElement );
-            if(this.state.works){
-              var texture = new THREE.TextureLoader().load( `data:image/png;base64,  ${this.state.works[0].dat.slice(2).slice(0, -1)}` )
-            };
-            if(!this.state.works){
 
-               texture = new THREE.CanvasTexture(canvas);
-               console.log(texture)
-            };
-            texture.minFilter = THREE.LinearFilter;
+    gameLoop()
 
-            var geometry = new THREE.PlaneGeometry( 2, 1, 24, 12 );
-            var material = new THREE.MeshBasicMaterial( {color: 0x000000, side: THREE.DoubleSide, map: texture} );
-            let plane2 = new THREE.Mesh( geometry, material );
-            plane2.matrixWorldNeedsUpdate = true
-            plane2.elementsNeedUpdate = true
-            plane2.verticesNeedUpdate = true
-            scene.add( plane2 );
 
 
-            function animate() {
 
-                requestAnimationFrame( animate )
-                // controls.update();
-                world.step(dt)
+    let container
+    let camera, scene, renderer
 
 
-                render()
-                if(texture){
-                texture.needsUpdate = true;
-              }
-            }
 
-            function render() {
+    const world  = new CANNON.World()
+    world.broadphase = new CANNON.NaiveBroadphase()
+    world.gravity.set(0,-1,0)
+    world.solver.iterations = 20
 
+    init()
+    animate()
 
-              //console.log(camera)
 
-                renderer.render( scene, camera)
+    const dt = 1/60
 
-            }
+    function init() {
+
+      container = document.createElement( 'div' )
+      document.body.appendChild( container )
+
+      // scene
+
+      scene = new THREE.Scene()
+
+      scene.fog = new THREE.Fog( 0x000000, 500, 10000 )
+
+      // camera
+
+      camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 0.5, 10000 )
+
+      camera.position.x=0
+      camera.position.y=-2
+      camera.position.z=15
+
+
+      scene.add( camera )
+
+
+
+
+      // lights
+      var light
+      scene.add( new THREE.AmbientLight( 0x666666 ) )
+
+      light = new THREE.DirectionalLight( 0xffffff, 1.75 )
+      var d = 5
+
+      light.position.set( d, d, d )
+
+      light.castShadow = true
+      //light.shadowCameraVisible = true;
+
+
+
+      scene.add( light )
+
+      scene.background = new THREE.Color( 0x000000 )
+
+
+
+
+
+
+
+
+
+      renderer = new THREE.WebGLRenderer( {alpha: false } ) ;              renderer.setSize( window.innerWidth, window.innerHeight )
+
+      container.appendChild( renderer.domElement )
+
+
+
+      window.addEventListener( 'resize', onWindowResize, false )
+
+      // camera.lookAt( sphereMesh.position );
+    }
+
+
+
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight
+      camera.updateProjectionMatrix()
+      // controls.handleResize();
+
+      renderer.setSize( window.innerWidth, window.innerHeight )
+
+    }
+
+    var controls = new OrbitControls( camera, renderer.domElement )
+
+    const  texture = new THREE.CanvasTexture(canvas)
+    console.log(texture)
+
+    texture.minFilter = THREE.LinearFilter
+
+    var geometry = new THREE.BoxBufferGeometry( 4, 2, 2 )
+    var material = new THREE.MeshBasicMaterial( {color: 0xffffff, side: THREE.DoubleSide, map: texture} )
+    const playerScreen = new THREE.Mesh( geometry, material )
+    playerScreen.matrixWorldNeedsUpdate = true
+    playerScreen.elementsNeedUpdate = true
+    playerScreen.verticesNeedUpdate = true
+    scene.add( playerScreen )
+
+    const playerMaterial = new CANNON.Material()
+
+    const groundMaterial = new CANNON.Material()
+
+    const obstacleMaterial = new CANNON.Material()
+
+    var groundPlayerContactMaterial = new CANNON.ContactMaterial(groundMaterial, playerMaterial, { friction: 0.0, restitution: 0.0 })
+
+    world.addContactMaterial(groundPlayerContactMaterial)
+
+    const playerScreenCannonShape = new CANNON.Box(new CANNON.Vec3(2,1,1))
+    const playerScreenBody = new  CANNON.Body({ mass: 10, material: playerMaterial})
+
+    playerScreenBody.addShape(playerScreenCannonShape)
+    playerScreenBody.fixedRotation = true
+    playerScreenBody.linearDamping = 0.01
+    world.addBody(playerScreenBody)
+    console.log(playerScreen)
+    console.log(playerScreenBody)
+
+    const groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
+    const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial })
+    groundBody.addShape(groundShape)
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2)
+    groundBody.position.set(0,0,0)
+    groundBody.position.y = -3
+
+    world.addBody(groundBody)
+    console.log(groundBody)
+
+
+
+    const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
+    function animate() {
+      if(playerScreen){
+        //playerScreen.rotation.x+=0.01
+      }
+      requestAnimationFrame( animate )
+      // controls.update();
+      world.step(dt)
+      if(playerScreen){
+        playerScreen.position.copy(playerScreenBody.position)
+        playerScreen.quaternion.copy(playerScreenBody.quaternion)
+      }
+
+      if(cannonDebugRenderer){
+        cannonDebugRenderer.update()
+      }
+      render()
+      if(texture){
+        texture.needsUpdate = true
+      }
+    }
+
+    function render() {
+
+
+      //console.log(camera)
+
+      renderer.render( scene, camera)
+
+    }
 
 
   }
