@@ -110,7 +110,7 @@ class Main extends React.Component{
 
         //groundBody.velocity.y+=0.1
       }
-        document.bgColor = 'rgb('+Math.random()*255+','+Math.random()*255+','+Math.random()*255+')'
+        // document.bgColor = 'rgb('+Math.random()*255+','+Math.random()*255+','+Math.random()*255+')'
       }
     })
 
