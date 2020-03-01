@@ -7,7 +7,7 @@ import Typed from 'typed.js'
 import '../debug.js'
 
 
-
+let playing = true
 
 var resetT = {
   strings: ['', 'GAME OVER   : R TO RESET'],
@@ -155,6 +155,7 @@ class Main extends React.Component{
         if(player.width === 20 && !player.grounded){
           player.width = 50
           player.height = 20
+
         } else if(player.width === 50 && !player.grounded){
           player.width = 20
           player.height = 50
@@ -298,14 +299,14 @@ class Main extends React.Component{
 
 
         if (keys[32] ) {
-          groundBody.velocity.y+=1
+          playerScreenBody.velocity.y+=2
           // up arrow or space
-          if (!player.jumping && player.grounded) {
-            player.jumping = true
-            player.grounded = false
-            player.velY = -player.speed * 4
-
-          }
+          // if (!player.jumping && player.grounded) {
+          //   player.jumping = true
+          //   player.grounded = false
+          //   player.velY = -player.speed * 4
+          //
+          // }
         }if (keys[39]) {
         // right arrow
           if (player.velX < player.speed) {
@@ -418,7 +419,7 @@ class Main extends React.Component{
 
     const world  = new CANNON.World()
     world.broadphase = new CANNON.NaiveBroadphase()
-    world.gravity.set(0,-1,0)
+    world.gravity.set(0,-20,0)
     world.solver.iterations = 20
 
     init()
@@ -516,25 +517,30 @@ class Main extends React.Component{
     playerScreen.verticesNeedUpdate = true
     scene.add( playerScreen )
 
-    const playerMaterial = new CANNON.Material()
+    const playerMaterial = new CANNON.Material('playerMaterial')
 
-    const groundMaterial = new CANNON.Material()
+    const groundMaterial = new CANNON.Material('groundMaterial')
 
-    const obstacleMaterial = new CANNON.Material()
+    const ballMaterial = new CANNON.Material('ballMaterial')
 
-    var groundPlayerContactMaterial = new CANNON.ContactMaterial(groundMaterial, playerMaterial, { friction: 0.0, restitution: 0.0 })
 
-    world.addContactMaterial(groundPlayerContactMaterial)
+
+
 
     const playerScreenCannonShape = new CANNON.Box(new CANNON.Vec3(2,1,1))
     const playerScreenBody = new  CANNON.Body({ mass: 10, material: playerMaterial})
 
     playerScreenBody.addShape(playerScreenCannonShape)
-    playerScreenBody.fixedRotation = true
-    playerScreenBody.linearDamping = 0.01
+    // playerScreenBody.fixedRotation = true
+    playerScreenBody.linearDamping = 0.1
     world.addBody(playerScreenBody)
     console.log(playerScreen)
     console.log(playerScreenBody)
+  //   playerScreenBody.addEventListener('collide',function(e){
+  //     playerScreenBody.velocity.y+=1
+  //
+  //
+  // })
 
     const groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
     const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial })
@@ -545,10 +551,59 @@ class Main extends React.Component{
 
     world.addBody(groundBody)
     console.log(groundBody)
+    var groundPlayerContactMaterial = new CANNON.ContactMaterial(groundMaterial, playerMaterial, { friction: 0.0, restitution: 0.0 })
+    world.addContactMaterial(groundPlayerContactMaterial)
+    world.solver.iterations = 10
 
-
-
+    world.defaultContactMaterial.contactEquationStiffness = 1e7
+    world.defaultContactMaterial.contactEquationRelaxation = 4
+    console.log(world)
+    console.log(groundPlayerContactMaterial)
     const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
+    let balls = []
+    let ballMeshes = []
+    function ballCreate(x,y){
+      const materialBall = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 1,
+        transparent: true } )
+
+      const ballGeometry = new THREE.SphereGeometry(0.2, 32, 32)
+      const ballMesh = new THREE.Mesh( ballGeometry, materialBall )
+      ballMesh.name = 'ball'
+      scene.add(ballMesh)
+      ballMeshes.push(ballMesh)
+
+
+
+
+      const ballShape = new CANNON.Sphere(0.1)
+      const ballBody = new CANNON.Body({ mass: 1, material: ballMaterial })
+      ballBody.addShape(ballShape)
+      ballBody.linearDamping = 0
+      world.addBody(ballBody)
+      balls.push(ballBody)
+      ballBody.position.set(x,y,60)
+      ballBody.velocity.z = -10
+      ballBody.addEventListener('collide',function(e){
+
+        console.log(e)
+        if(playing){
+
+          // playing = false
+
+
+        }
+      })
+    }
+
+
+    ballCreate(0, Math.floor(Math.random()*25))
+    setInterval(function () {
+      console.log('hiya')
+      if(playing){
+        ballCreate(0, Math.floor(Math.random()*25))
+      }
+    }, 5000)
+
     function animate() {
       if(playerScreen){
         //playerScreen.rotation.x+=0.01
@@ -556,13 +611,10 @@ class Main extends React.Component{
       requestAnimationFrame( animate )
       // controls.update();
       world.step(dt)
-      if(playerScreen){
-        playerScreen.position.copy(playerScreenBody.position)
-        playerScreen.quaternion.copy(playerScreenBody.quaternion)
-      }
+
 
       if(cannonDebugRenderer){
-        cannonDebugRenderer.update()
+        // cannonDebugRenderer.update()
       }
       render()
       if(texture){
@@ -572,7 +624,16 @@ class Main extends React.Component{
 
     function render() {
 
-
+      if(playerScreen){
+        playerScreen.position.copy(playerScreenBody.position)
+        playerScreen.quaternion.copy(playerScreenBody.quaternion)
+      }
+      if(balls){
+        for(var j=0; j<balls.length; j++){
+          ballMeshes[j].position.copy(balls[j].position)
+          ballMeshes[j].quaternion.copy(balls[j].quaternion)
+        }
+      }
       //console.log(camera)
 
       renderer.render( scene, camera)
